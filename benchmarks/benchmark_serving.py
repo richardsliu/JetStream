@@ -64,6 +64,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import json
 import random
+import requests
 import time
 from typing import Any, AsyncGenerator, Optional
 import os
@@ -420,6 +421,20 @@ async def grpc_async_request(
     latency = time.perf_counter() - request_start_time
     return token_list, ttft, latency
 
+async def http_async_request(api_url: str, prompt: str) -> tuple[list[str], float, float]:
+    print("Making http request")
+    ttft = 0
+    token_list = []
+    request_start_time = time.perf_counter()
+
+    sample_input = {"prompt": prompt}
+    output = requests.post("http://localhost:8000/", json=sample_input)
+    if ttft == 0:
+        ttft = time.perf_counter() - request_start_time
+    token_list.extend(output.json()['token_ids'])
+
+    latency = time.perf_counter() - request_start_time
+    return token_list, ttft, latency
 
 async def send_request(
     api_url: str,
@@ -439,8 +454,8 @@ async def send_request(
   output = RequestFuncOutput()
   output.input_request = input_request
   output.prompt_len = input_request.prompt_len
-  generated_token_list, ttft, latency = await grpc_async_request(
-      api_url, request
+  generated_token_list, ttft, latency = await http_async_request(
+      api_url, input_request.prompt
   )
   output.ttft = ttft
   output.latency = latency
